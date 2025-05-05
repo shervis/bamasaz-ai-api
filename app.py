@@ -6,10 +6,14 @@ app = Flask(__name__)
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
 API_URL = "https://api-inference.huggingface.co/models/nlptown/bert-base-multilingual-uncased-sentiment"
-
 headers = {
-    "Authorization": f"Bearer {HF_TOKEN}"
+    "Authorization": f"Bearer {HF_TOKEN}",
+    "Content-Type": "application/json"
 }
+
+@app.route("/", methods=["GET"])
+def home():
+    return "Bamasaz AI API is live!"
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -26,6 +30,3 @@ def analyze():
 
     result = response.json()
     return jsonify({"result": result})
-
-if __name__ == "__main__":
-    app.run(debug=True)
