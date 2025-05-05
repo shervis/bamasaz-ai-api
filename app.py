@@ -1,32 +1,43 @@
-import os
-import requests
+
 from flask import Flask, request, jsonify
+from transformers import pipeline
 
 app = Flask(__name__)
 
-HF_TOKEN = os.environ.get("HF_TOKEN")
-API_URL = "https://api-inference.huggingface.co/models/nlptown/bert-base-multilingual-uncased-sentiment"
-headers = {
-    "Authorization": f"Bearer {HF_TOKEN}",
-    "Content-Type": "application/json"
-}
+# مدل احساس
+sentiment_pipeline = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Bamasaz AI API is live!"
+# مدل تحلیل موضوعی (zero-shot)
+topic_pipeline = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+
+# دسته‌بندی‌های پیشنهادی (می‌توان ویرایش کرد)
+candidate_labels = [
+    "Fintech", "HealthTech", "EdTech", "AgriTech", "PropTech",
+    "GreenTech", "E-commerce", "FoodTech", "Entertainment", "AI & Analytics"
+]
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    input_data = request.json
-    text = input_data.get("text", "")
+    try:
+        data = request.get_json()
+        text = data.get("text", "")
 
-    if not text:
-        return jsonify({"error": "متن ورودی خالی است"}), 400
+        if not text.strip():
+            return jsonify({"error": "Empty text provided"}), 400
 
-    response = requests.post(API_URL, headers=headers, json={"inputs": text})
+        # تحلیل احساس
+        sentiment_result = sentiment_pipeline(text)
 
-    if response.status_code != 200:
-        return jsonify({"error": "خطا در اتصال یا احراز هویت", "detail": response.json()}), response.status_code
+        # تحلیل موضوعی
+        topic_result = topic_pipeline(text, candidate_labels)
+        top_topic = topic_result["labels"][0]
 
-    result = response.json()
-    return jsonify({"result": result})
+        return jsonify({
+            "result": sentiment_result,
+            "topic": top_topic
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True)
