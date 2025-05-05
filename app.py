@@ -1,4 +1,3 @@
-
 import os
 import requests
 from flask import Flask, request, jsonify
@@ -32,33 +31,35 @@ def proxy():
         text = input_data.get("text", "").strip()
 
         if not text:
-            return jsonify({"error": "No input text provided"}), 400
+            return jsonify({"error": "متن ارسال نشده است"}), 400
 
-        payload = {"inputs": text}
-        response = requests.post(SENTIMENT_URL, headers=HEADERS, json=payload)
-        result = response.json()
+        # تحلیل احساس
+        sentiment_response = requests.post(SENTIMENT_URL, headers=HEADERS, json={"inputs": text})
+        if sentiment_response.status_code != 200:
+            return jsonify({"error": f"خطا در مدل تحلیل احساس: {sentiment_response.status_code}"}), 500
+        sentiment_result = sentiment_response.json()
 
-        return jsonify({"sentiment": result})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/classify", methods=["POST"])
-def classify():
-    try:
-        input_data = request.json
-        text = input_data.get("text", "").strip()
-
-        if not text:
-            return jsonify({"error": "No input text provided"}), 400
-
-        payload = {
+        # دسته‌بندی موضوعی
+        topic_payload = {
             "inputs": text,
-            "parameters": {"candidate_labels": CATEGORIES}
+            "parameters": {
+                "candidate_labels": CATEGORIES
+            }
+        }
+        topic_response = requests.post(TOPIC_URL, headers=HEADERS, json=topic_payload)
+        if topic_response.status_code != 200:
+            return jsonify({"error": f"خطا در مدل دسته‌بندی موضوعی: {topic_response.status_code}"}), 500
+        topic_result = topic_response.json()
+
+        # نتیجه نهایی برای ذخیره در پلاگین وردپرس
+        final_result = {
+            "sequence": text,
+            "sentiment": sentiment_result,
+            "labels": topic_result.get("labels", []),
+            "scores": topic_result.get("scores", [])
         }
 
-        response = requests.post(TOPIC_URL, headers=HEADERS, json=payload)
-        result = response.json()
+        return jsonify(final_result)
 
-        return jsonify({"result": result})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"خطای داخلی سرور: {str(e)}"}), 500
