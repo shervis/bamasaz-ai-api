@@ -12,36 +12,37 @@ headers = {
     "Content-Type": "application/json"
 }
 
-CATEGORIES = [
-    "Fintech", "HealthTech", "EdTech", "AgriTech", "PropTech",
-    "FoodTech", "E-Commerce", "TransportTech", "GreenTech", "InsurTech",
-    "SaaS", "Data Science", "Cybersecurity", "Entertainment", "BioTech",
-    "HRTech", "LegalTech", "GovTech", "RegTech", "Advertising"
+candidate_labels = [
+    "Fintech", "HealthTech", "EdTech", "AgriTech", "FoodTech",
+    "E-Commerce", "TransportTech", "InsurTech", "Cybersecurity", "BioTech"
 ]
+
+@app.route("/", methods=["GET"])
+def home():
+    return "Bamasaz AI classification service is live!"
 
 @app.route("/classify", methods=["POST"])
 def classify():
     input_data = request.json
-    text = input_data.get("text", "").strip()
+    text = input_data.get("text", "")
 
     if not text:
         return jsonify({"error": "متن ورودی خالی است"}), 400
 
     payload = {
         "inputs": text,
-        "parameters": {"candidate_labels": CATEGORIES}
+        "parameters": {
+            "candidate_labels": candidate_labels
+        }
     }
 
     response = requests.post(API_URL, headers=headers, json=payload)
+
     if response.status_code != 200:
         return jsonify({"error": "خطا در اتصال به مدل", "detail": response.json()}), response.status_code
 
     result = response.json()
     return jsonify({"result": result})
-
-@app.route("/", methods=["GET"])
-def home():
-    return "Bamasaz AI classification API is live."
 
 if __name__ == "__main__":
     app.run(debug=True)
