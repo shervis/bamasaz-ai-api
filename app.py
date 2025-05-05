@@ -1,3 +1,4 @@
+
 import os
 import requests
 from flask import Flask, request, jsonify
@@ -31,28 +32,33 @@ def proxy():
         text = input_data.get("text", "").strip()
 
         if not text:
-            return jsonify({"error": "متن خالی است."}), 400
+            return jsonify({"error": "No input text provided"}), 400
 
-        # تحلیل احساس
-        sent_payload = {"inputs": text}
-        sent_response = requests.post(SENTIMENT_URL, headers=HEADERS, json=sent_payload)
-        sentiment = sent_response.json()
+        payload = {"inputs": text}
+        response = requests.post(SENTIMENT_URL, headers=HEADERS, json=payload)
+        result = response.json()
 
-        # تحلیل موضوع
-        topic_payload = {
-            "inputs": text,
-            "parameters": {"candidate_labels": CATEGORIES}
-        }
-        topic_response = requests.post(TOPIC_URL, headers=HEADERS, json=topic_payload)
-        topic = topic_response.json()
-
-        return jsonify({
-            "sentiment": sentiment,
-            "topic": topic
-        })
-
+        return jsonify({"sentiment": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
-    app.run(debug=True)
+@app.route("/classify", methods=["POST"])
+def classify():
+    try:
+        input_data = request.json
+        text = input_data.get("text", "").strip()
+
+        if not text:
+            return jsonify({"error": "No input text provided"}), 400
+
+        payload = {
+            "inputs": text,
+            "parameters": {"candidate_labels": CATEGORIES}
+        }
+
+        response = requests.post(TOPIC_URL, headers=HEADERS, json=payload)
+        result = response.json()
+
+        return jsonify({"result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
