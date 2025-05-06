@@ -1,63 +1,62 @@
-from flask import Flask, request, jsonify
-import requests
+
 import os
+import requests
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-HUGGINGFACE_TOKEN = os.getenv("HF_TOKEN")
+HF_TOKEN = os.environ.get("HF_TOKEN")
 
 HEADERS = {
-    "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+    "Authorization": f"Bearer {HF_TOKEN}",
     "Content-Type": "application/json"
 }
 
-MODELS = {
-    "sentiment": "HooshvareLab/bert-fa-sentiment-digikala",
-    "topic": "HooshvareLab/persian-news-category-classifier",
-    "summary": "MBZUAI/LaMini-Flan-T5-248M"
-}
+SENTIMENT_URL = "https://api-inference.huggingface.co/models/HooshvareLab/bert-fa-base-uncased-sentiment-digikala"
+TOPIC_URL = "https://api-inference.huggingface.co/models/HooshvareLab/bert-fa-base-uncased-clf-persiannews"
 
-def query_huggingface(model, payload):
-    url = f"https://api-inference.huggingface.co/models/{model}"
-    response = requests.post(url, headers=HEADERS, json=payload)
+@app.route("/", methods=["GET"])
+def home():
+    return "Bamasaz AI middleware is active."
+
+@app.route("/proxy", methods=["POST"])
+def proxy():
     try:
-        return response.json()
-    except:
-        return {"error": "Invalid JSON response"}
+        input_data = request.json
+        text_parts = [
+            input_data.get("21", ""),
+            input_data.get("33", ""),
+            input_data.get("36", ""),
+            input_data.get("44", ""),
+            input_data.get("49", ""),
+            input_data.get("57", ""),
+            input_data.get("59", ""),
+            input_data.get("64", ""),
+            input_data.get("71", ""),
+            input_data.get("78", ""),
+            input_data.get("79", ""),
+            input_data.get("121", ""),
+            input_data.get("140", ""),
+            input_data.get("142", ""),
+            input_data.get("152", "")
+        ]
+        text = '\n'.join([part for part in text_parts if part])
 
-@app.route("/analyze", methods=["POST"])
-def analyze_text():
-    data = request.get_json()
-    if not data or "text" not in data:
-        return jsonify({"error": "No text provided"}), 400
+        # تحلیل احساس
+        sentiment_response = requests.post(SENTIMENT_URL, headers=HEADERS, json={"inputs": text})
+        sentiment_result = sentiment_response.json()
 
-    input_text = data["text"]
-    results = {
-        "sentiment": query_huggingface(MODELS["sentiment"], {"inputs": input_text}),
-        "topic": query_huggingface(MODELS["topic"], {"inputs": input_text}),
-        "summary": query_huggingface(MODELS["summary"], {"inputs": input_text})
-    }
-    return jsonify(results)
+        # تحلیل موضوع
+        topic_response = requests.post(TOPIC_URL, headers=HEADERS, json={"inputs": text})
+        topic_result = topic_response.json()
 
-# Local dev endpoint to simulate form field combination
-@app.route("/simulate_entry", methods=["POST"])
-def simulate_entry():
-    entry = request.get_json()
-    text_parts = []
-text_parts.append(rgar(entry, '21'))  # فیلد 21
-text_parts.append(rgar(entry, '33'))  # فیلد 33
-text_parts.append(rgar(entry, '36'))  # فیلد 36
-text_parts.append(rgar(entry, '44'))  # فیلد 44
-text_parts.append(rgar(entry, '49'))  # فیلد 49
-text_parts.append(rgar(entry, '57'))  # فیلد 57
-text_parts.append(rgar(entry, '59'))  # فیلد 59
-text_parts.append(rgar(entry, '64'))  # فیلد 64
-text_parts.append(rgar(entry, '71'))  # فیلد 71
-text_parts.append(rgar(entry, '78'))  # فیلد 78
-text_parts.append(rgar(entry, '79'))  # فیلد 79
-text_parts.append(rgar(entry, '121'))  # فیلد 121
-text_parts.append(rgar(entry, '140'))  # فیلد 140
-text_parts.append(rgar(entry, '142'))  # فیلد 142
-text_parts.append(rgar(entry, '152'))  # فیلد 152
-    text = '\n'.join([part for part in text_parts if part])
-    return analyze_text()
+        # ساخت خروجی ترکیبی
+        output = {
+            "sentiment": sentiment_result,
+            "topic": topic_result,
+            "text": text
+        }
+        return jsonify(output)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
