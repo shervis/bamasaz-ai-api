@@ -1,73 +1,79 @@
-
 import os
 import requests
+import traceback
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+# دریافت توکن از محیط
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
+# هدر برای Hugging Face API
 HEADERS = {
     "Authorization": f"Bearer {HF_TOKEN}",
     "Content-Type": "application/json"
 }
 
+# URL مدل‌های Hugging Face
 SENTIMENT_URL = "https://api-inference.huggingface.co/models/HooshvareLab/bert-fa-base-uncased-sentiment-snappfood"
 TOPIC_URL = "https://api-inference.huggingface.co/models/HooshvareLab/bert-fa-base-uncased-clf-persiannews"
 
 @app.route("/", methods=["GET"])
 def home():
-    return "Bamasaz AI middleware is active."
+    return "✅ Bamasaz AI middleware is active."
 
 @app.route("/proxy", methods=["POST"])
 def proxy():
     try:
+        # لاگ اولیه برای ورودی
+        print("🎯 Raw input received:", request.get_data(as_text=True))
+
         input_data = request.json
 
         if not HF_TOKEN:
+            print("🚫 HF_TOKEN is missing from environment variables.")
             return jsonify({"error": "HF_TOKEN is missing"}), 403
 
-        text_parts = [
-            input_data.get("21", ""),
-            input_data.get("33", ""),
-            input_data.get("36", ""),
-            input_data.get("44", ""),
-            input_data.get("49", ""),
-            input_data.get("57", ""),
-            input_data.get("59", ""),
-            input_data.get("64", ""),
-            input_data.get("71", ""),
-            input_data.get("78", ""),
-            input_data.get("79", ""),
-            input_data.get("121", ""),
-            input_data.get("140", ""),
-            input_data.get("142", ""),
-            input_data.get("152", "")
-        ]
-
+        # استخراج فیلدهای متنی
+        text_parts = [input_data.get(str(f), "") for f in [21, 33, 36, 44, 49, 57, 59, 64, 71, 78, 79, 121, 140, 142, 152]]
         text = '\n'.join([part for part in text_parts if part]).strip()
 
         if not text:
+            print("⚠️ No text content found for analysis.")
             return jsonify({"error": "هیچ متنی برای تحلیل ارسال نشده است."}), 400
 
-        # تحلیل احساس
+        # ارسال به مدل تحلیل احساس
         sentiment_response = requests.post(SENTIMENT_URL, headers=HEADERS, json={"inputs": text})
-        if sentiment_response.status_code != 200:
-            return jsonify({"error": f"❌ خطا در مدل تحلیل احساس: {sentiment_response.status_code}"}), 500
+        print("📦 Sentiment response:", sentiment_response.text)
         sentiment_result = sentiment_response.json()
 
-        # تحلیل موضوع
+        if sentiment_response.status_code != 200 or "error" in sentiment_result:
+            return jsonify({
+                "error": "❌ خطا در مدل تحلیل احساس",
+                "details": sentiment_result.get("error", "نامشخص")
+            }), 503
+
+        # ارسال به مدل تحلیل موضوع
         topic_response = requests.post(TOPIC_URL, headers=HEADERS, json={"inputs": text})
-        if topic_response.status_code != 200:
-            return jsonify({"error": f"❌ خطا در مدل تحلیل موضوع: {topic_response.status_code}"}), 500
+        print("📦 Topic response:", topic_response.text)
         topic_result = topic_response.json()
 
+        if topic_response.status_code != 200 or "error" in topic_result:
+            return jsonify({
+                "error": "❌ خطا در مدل تحلیل موضوع",
+                "details": topic_result.get("error", "نامشخص")
+            }), 503
+
+        # خروجی نهایی
         output = {
             "sentiment": sentiment_result,
             "topic": topic_result,
             "text": text
         }
+
         return jsonify(output)
 
     except Exception as e:
+        print("🔥 Unexpected error:")
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
