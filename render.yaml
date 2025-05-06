@@ -1,7 +1,11 @@
 services:
   - type: web
-    name: bamasaz-ai-api
+    name: bamasaz-ai
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
-    plan: free
+    envVars:
+      - key: HF_TOKEN
+        sync: false  # مقدار آن از پنل Render ست می‌شود
+    autoDeploy: true
