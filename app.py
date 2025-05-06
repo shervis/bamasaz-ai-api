@@ -1,3 +1,4 @@
+
 import os
 import requests
 from flask import Flask, request, jsonify
@@ -47,7 +48,7 @@ def proxy():
         text = '\n'.join([part for part in text_parts if part]).strip()
 
         if not text:
-            return jsonify({"error": "No input text provided"}), 400
+            return jsonify({"error": "هیچ متنی برای تحلیل ارسال نشده است."}), 400
 
         # تحلیل احساس
         sentiment_response = requests.post(SENTIMENT_URL, headers=HEADERS, json={"inputs": text})
