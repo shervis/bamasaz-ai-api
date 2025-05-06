@@ -5,17 +5,16 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# گرفتن توکن از محیط
+# گرفتن توکن Hugging Face از متغیر محیطی
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
-# هدر برای Hugging Face
 HEADERS = {
     "Authorization": f"Bearer {HF_TOKEN}",
     "Content-Type": "application/json"
 }
 
-# مدل‌های Hugging Face
-SENTIMENT_URL = "https://api-inference.huggingface.co/models/m3hrdadfi/bert-fa-base-uncased-sentiment"
+# ✅ مدل‌های Hugging Face آماده و در دسترس
+SENTIMENT_URL = "https://api-inference.huggingface.co/models/HooshvareLab/bert-fa-base-uncased-sentiment-digikala"
 TOPIC_URL = "https://api-inference.huggingface.co/models/HooshvareLab/bert-fa-base-uncased-clf-persiannews"
 
 @app.route("/", methods=["GET"])
@@ -27,14 +26,13 @@ def proxy():
     try:
         # لاگ ورودی
         print("🎯 Raw input received:", request.get_data(as_text=True))
-
         input_data = request.json
 
         if not HF_TOKEN:
             print("🚫 HF_TOKEN is missing.")
             return jsonify({"error": "HF_TOKEN is missing"}), 403
 
-        # استخراج فیلدهای متنی
+        # ترکیب فیلدهای متنی
         text_parts = [input_data.get(str(f), "") for f in [21, 33, 36, 44, 49, 57, 59, 64, 71, 78, 79, 121, 140, 142, 152]]
         text = '\n'.join([part for part in text_parts if part]).strip()
 
@@ -49,7 +47,6 @@ def proxy():
         try:
             sentiment_result = sentiment_response.json()
         except Exception:
-            print("⛔ JSON decode error in sentiment response.")
             return jsonify({
                 "error": "پاسخ نامعتبر از مدل تحلیل احساس",
                 "raw": sentiment_response.text
@@ -69,7 +66,6 @@ def proxy():
         try:
             topic_result = topic_response.json()
         except Exception:
-            print("⛔ JSON decode error in topic response.")
             return jsonify({
                 "error": "پاسخ نامعتبر از مدل تحلیل موضوع",
                 "raw": topic_response.text
@@ -81,13 +77,12 @@ def proxy():
                 "details": topic_result.get("error", "نامشخص")
             }), 503
 
-        output = {
+        # پاسخ نهایی
+        return jsonify({
             "sentiment": sentiment_result,
             "topic": topic_result,
             "text": text
-        }
-
-        return jsonify(output)
+        })
 
     except Exception as e:
         print("🔥 Unexpected error:")
