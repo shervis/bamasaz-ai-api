@@ -1,4 +1,3 @@
-
 import os
 import requests
 from flask import Flask, request, jsonify
@@ -23,6 +22,10 @@ def home():
 def proxy():
     try:
         input_data = request.json
+
+        if not HF_TOKEN:
+            return jsonify({"error": "HF_TOKEN is missing"}), 403
+
         text_parts = [
             input_data.get("21", ""),
             input_data.get("33", ""),
@@ -40,17 +43,24 @@ def proxy():
             input_data.get("142", ""),
             input_data.get("152", "")
         ]
-        text = '\n'.join([part for part in text_parts if part])
+
+        text = '\n'.join([part for part in text_parts if part]).strip()
+
+        if not text:
+            return jsonify({"error": "No input text provided"}), 400
 
         # تحلیل احساس
         sentiment_response = requests.post(SENTIMENT_URL, headers=HEADERS, json={"inputs": text})
+        if sentiment_response.status_code != 200:
+            return jsonify({"error": f"خطا در مدل تحلیل احساس: {sentiment_response.status_code}"}), 500
         sentiment_result = sentiment_response.json()
 
         # تحلیل موضوع
         topic_response = requests.post(TOPIC_URL, headers=HEADERS, json={"inputs": text})
+        if topic_response.status_code != 200:
+            return jsonify({"error": f"خطا در مدل تحلیل موضوع: {topic_response.status_code}"}), 500
         topic_result = topic_response.json()
 
-        # ساخت خروجی ترکیبی
         output = {
             "sentiment": sentiment_result,
             "topic": topic_result,
